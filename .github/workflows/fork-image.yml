@@ -1,0 +1,41 @@
+# TODO(upstream MCPJungle#320 / PR #331): delete this branch and workflow once upstream ships Node >= 22 in the stdio image.
+# Builds the stdio image from this branch's stdio.Dockerfile (Node 24), using the official release binary.
+name: fork-image
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [fork-image]
+
+env:
+  MCPJUNGLE_VERSION: 0.4.7
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch official release binary
+        run: |
+          curl -fsSL "https://github.com/mcpjungle/MCPJungle/releases/download/${MCPJUNGLE_VERSION}/mcpjungle_Linux_x86_64.tar.gz" | tar -xz mcpjungle
+          chmod +x mcpjungle
+          ./mcpjungle version || true
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: stdio.Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ghcr.io/${{ github.repository_owner }}/mcpjungle:${{ env.MCPJUNGLE_VERSION }}-stdio-node24
